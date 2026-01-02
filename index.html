@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Halo | Safety Simulation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .heart-pulse {
+            animation: pulse 0.8s ease-in-out infinite;
+        }
+        .glass-morphism {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-white min-h-screen flex items-center justify-center p-4">
+
+    <!-- Main Dashboard -->
+    <div class="max-w-md w-full glass-morphism rounded-3xl p-8 shadow-2xl">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold tracking-tight text-cyan-400">HALO</h1>
+            <span class="bg-cyan-500/20 text-cyan-300 text-xs px-3 py-1 rounded-full border border-cyan-500/30 uppercase tracking-widest">Simulation</span>
+        </div>
+
+        <!-- BPM Display -->
+        <div class="flex flex-col items-center justify-center py-10 bg-slate-800/50 rounded-2xl mb-8 border border-slate-700">
+            <svg id="heart-icon" class="w-16 h-16 text-rose-500 mb-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+            </svg>
+            <div class="flex items-baseline">
+                <span id="display-bpm" class="text-6xl font-black">--</span>
+                <span class="ml-2 text-slate-400 font-medium italic">BPM</span>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="space-y-6">
+            <div>
+                <label class="block text-sm font-medium text-slate-400 mb-2">Safety BPM Limit</label>
+                <input type="number" id="bpm-limit" value="120" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-slate-400 mb-2">Check-in Timer (Seconds)</label>
+                <input type="number" id="timer-setting" value="10" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all">
+            </div>
+
+            <div class="pt-4">
+                <label class="block text-sm font-medium text-slate-400 mb-2 font-bold uppercase tracking-widest">Manual Input Simulation</label>
+                <div class="flex gap-2">
+                    <input type="number" id="input-bpm" placeholder="Enter BPM" class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-rose-500 transition-all">
+                    <button onclick="simulateBpm()" class="bg-cyan-600 hover:bg-cyan-500 px-6 py-3 rounded-xl font-bold transition-colors">Test</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Overlay -->
+    <div id="alert-overlay" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-xl flex items-center justify-center p-6 z-50">
+        <div class="max-w-sm w-full bg-slate-900 border-2 border-rose-500 rounded-3xl p-8 text-center shadow-[0_0_50px_rgba(244,63,94,0.3)]">
+            <div class="w-20 h-20 bg-rose-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg class="w-10 h-10 text-rose-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+            </div>
+            
+            <h2 id="alert-title" class="text-2xl font-bold mb-4">Suspicious Heart Rate</h2>
+            <p id="alert-msg" class="text-slate-400 mb-8">We have detected a suspicious heart rate. Are you alright?</p>
+            
+            <div id="countdown-container" class="mb-8">
+                <div class="text-sm uppercase tracking-widest text-slate-500 mb-2">Emergency Dispatch in</div>
+                <div id="countdown-number" class="text-5xl font-black text-rose-500">10</div>
+            </div>
+
+            <button id="safe-button" onclick="cancelAlert()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-emerald-900/20 mb-4">
+                Yes I'm fine
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let countdownTimer;
+        let isEmergency = false;
+
+        function simulateBpm() {
+            const input = document.getElementById('input-bpm');
+            const limit = document.getElementById('bpm-limit');
+            const display = document.getElementById('display-bpm');
+            const heartIcon = document.getElementById('heart-icon');
+            
+            const val = parseInt(input.value);
+            const lim = parseInt(limit.value);
+
+            if (isNaN(val)) return;
+
+            display.innerText = val;
+            
+            // Pulse animation intensity
+            if (val > 100) {
+                heartIcon.classList.add('heart-pulse');
+            } else {
+                heartIcon.classList.remove('heart-pulse');
+            }
+
+            if (val > lim) {
+                triggerEmergencyProtocol();
+            }
+        }
+
+        function triggerEmergencyProtocol() {
+            const overlay = document.getElementById('alert-overlay');
+            const countdownEl = document.getElementById('countdown-number');
+            const timerSetting = document.getElementById('timer-setting');
+            
+            let timeLeft = parseInt(timerSetting.value) || 10;
+            
+            overlay.classList.remove('hidden');
+            countdownEl.innerText = timeLeft;
+            isEmergency = false;
+
+            // Reset UI in case of previous emergency
+            document.getElementById('safe-button').classList.remove('hidden');
+            document.getElementById('alert-title').innerText = "Suspicious Heart Rate";
+            document.getElementById('alert-msg').innerText = "We have detected a suspicious heart rate. Are you alright?";
+            document.getElementById('countdown-container').classList.remove('hidden');
+
+            clearInterval(countdownTimer);
+            countdownTimer = setInterval(() => {
+                timeLeft--;
+                countdownEl.innerText = timeLeft;
+
+                if (timeLeft <= 0) {
+                    clearInterval(countdownTimer);
+                    executeDispatch();
+                }
+            }, 1000);
+        }
+
+        function executeDispatch() {
+            isEmergency = true;
+            document.getElementById('alert-title').innerText = "Emergency Triggered";
+            document.getElementById('alert-msg').innerText = "The police and emergency contacts have been contacted.";
+            document.getElementById('countdown-container').classList.add('hidden');
+            document.getElementById('safe-button').innerText = "Dismiss Notification";
+        }
+
+        function cancelAlert() {
+            clearInterval(countdownTimer);
+            document.getElementById('alert-overlay').classList.add('hidden');
+            document.getElementById('input-bpm').value = '';
+            
+            if (isEmergency) {
+                // If they clicked "Dismiss" after dispatch, we just reset the whole simulation
+                document.getElementById('display-bpm').innerText = '--';
+                document.getElementById('heart-icon').classList.remove('heart-pulse');
+            }
+        }
+    </script>
+</body>
+</html>
