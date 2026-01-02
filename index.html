@@ -1,168 +1,291 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Halo | Safety Simulation</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @keyframes pulse {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.1); opacity: 0.8; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-        .heart-pulse {
-            animation: pulse 0.8s ease-in-out infinite;
-        }
-        .glass-morphism {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-    </style>
-</head>
-<body class="bg-slate-900 text-white min-h-screen flex items-center justify-center p-4">
+import React, { useState, useEffect } from 'react';
+import { Heart, Shield, Activity, Users, Settings, LogOut, ChevronRight, AlertTriangle, Plus, Trash2, Bell, CheckCircle2 } from 'lucide-react';
 
-    <!-- Main Dashboard -->
-    <div class="max-w-md w-full glass-morphism rounded-3xl p-8 shadow-2xl">
-        <div class="flex justify-between items-center mb-8">
-            <h1 class="text-3xl font-bold tracking-tight text-cyan-400">HALO</h1>
-            <span class="bg-cyan-500/20 text-cyan-300 text-xs px-3 py-1 rounded-full border border-cyan-500/30 uppercase tracking-widest">Simulation</span>
-        </div>
+const App = () => {
+  // Navigation State: 'welcome' | 'login' | 'dashboard' | 'simulation' | 'contacts' | 'activity'
+  const [view, setView] = useState('welcome');
+  const [user, setUser] = useState(null);
+  const [bpm, setBpm] = useState('');
+  const [emergencyContacts, setEmergencyContacts] = useState([
+    { id: 1, name: 'John Doe', relation: 'Brother', phone: '+1 234 567 890' },
+    { id: 2, name: 'Jane Smith', relation: 'Doctor', phone: '+1 987 654 321' }
+  ]);
+  
+  // Simulation State
+  const [safetyLimit, setSafetyLimit] = useState(120);
+  const [timerSeconds, setTimerSeconds] = useState(10);
+  const [isAlerting, setIsAlerting] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [isEmergencyTriggered, setIsEmergencyTriggered] = useState(false);
+  const [isActivityMode, setIsActivityMode] = useState(false);
 
-        <!-- BPM Display -->
-        <div class="flex flex-col items-center justify-center py-10 bg-slate-800/50 rounded-2xl mb-8 border border-slate-700">
-            <svg id="heart-icon" class="w-16 h-16 text-rose-500 mb-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-            </svg>
-            <div class="flex items-baseline">
-                <span id="display-bpm" class="text-6xl font-black">--</span>
-                <span class="ml-2 text-slate-400 font-medium italic">BPM</span>
-            </div>
-        </div>
+  // Constants
+  const ACTIVITY_BPM_OFFSET = 40; // Higher limit allowed during exercise
 
-        <!-- Controls -->
-        <div class="space-y-6">
-            <div>
-                <label class="block text-sm font-medium text-slate-400 mb-2">Safety BPM Limit</label>
-                <input type="number" id="bpm-limit" value="120" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all">
-            </div>
+  // Effect for Emergency Countdown
+  useEffect(() => {
+    let interval;
+    if (isAlerting && countdown > 0) {
+      interval = setInterval(() => {
+        setCountdown((prev) => prev - 1);
+      }, 1000);
+    } else if (isAlerting && countdown === 0) {
+      setIsEmergencyTriggered(true);
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [isAlerting, countdown]);
 
-            <div>
-                <label class="block text-sm font-medium text-slate-400 mb-2">Check-in Timer (Seconds)</label>
-                <input type="number" id="timer-setting" value="10" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all">
-            </div>
+  const handleLogin = (e) => {
+    e.preventDefault();
+    setUser({ name: 'Demo User' });
+    setView('dashboard');
+  };
 
-            <div class="pt-4">
-                <label class="block text-sm font-medium text-slate-400 mb-2 font-bold uppercase tracking-widest">Manual Input Simulation</label>
-                <div class="flex gap-2">
-                    <input type="number" id="input-bpm" placeholder="Enter BPM" class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-rose-500 transition-all">
-                    <button onclick="simulateBpm()" class="bg-cyan-600 hover:bg-cyan-500 px-6 py-3 rounded-xl font-bold transition-colors">Test</button>
-                </div>
-            </div>
-        </div>
+  const startSimulation = () => {
+    const currentBpm = parseInt(bpm);
+    const effectiveLimit = isActivityMode ? safetyLimit + ACTIVITY_BPM_OFFSET : safetyLimit;
+
+    if (currentBpm > effectiveLimit) {
+      setCountdown(timerSeconds);
+      setIsAlerting(true);
+      setIsEmergencyTriggered(false);
+    } else {
+      alert("Heart rate within safe parameters.");
+    }
+  };
+
+  const addContact = (e) => {
+    e.preventDefault();
+    const name = e.target.contactName.value;
+    const phone = e.target.contactPhone.value;
+    if (name && phone) {
+      setEmergencyContacts([...emergencyContacts, { id: Date.now(), name, relation: 'Added Contact', phone }]);
+      e.target.reset();
+    }
+  };
+
+  const deleteContact = (id) => {
+    setEmergencyContacts(emergencyContacts.filter(c => c.id !== id));
+  };
+
+  // --- SUB-COMPONENTS ---
+
+  const WelcomePage = () => (
+    <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center">
+      <div className="w-24 h-24 bg-cyan-500 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-cyan-500/50">
+        <Shield size={48} className="text-white" />
+      </div>
+      <h1 className="text-5xl font-black text-white mb-4">HALO</h1>
+      <p className="text-slate-400 max-w-xs mb-10">Advanced heart-rate monitoring and autonomous emergency response simulation.</p>
+      <button 
+        onClick={() => setView('login')}
+        className="w-full max-w-xs bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-4 rounded-2xl transition-all flex items-center justify-center gap-2 group"
+      >
+        Get Started <ChevronRight className="group-hover:translate-x-1 transition-transform" />
+      </button>
     </div>
+  );
 
-    <!-- Alert Overlay -->
-    <div id="alert-overlay" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-xl flex items-center justify-center p-6 z-50">
-        <div class="max-w-sm w-full bg-slate-900 border-2 border-rose-500 rounded-3xl p-8 text-center shadow-[0_0_50px_rgba(244,63,94,0.3)]">
-            <div class="w-20 h-20 bg-rose-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                <svg class="w-10 h-10 text-rose-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                </svg>
-            </div>
-            
-            <h2 id="alert-title" class="text-2xl font-bold mb-4">Suspicious Heart Rate</h2>
-            <p id="alert-msg" class="text-slate-400 mb-8">We have detected a suspicious heart rate. Are you alright?</p>
-            
-            <div id="countdown-container" class="mb-8">
-                <div class="text-sm uppercase tracking-widest text-slate-500 mb-2">Emergency Dispatch in</div>
-                <div id="countdown-number" class="text-5xl font-black text-rose-500">10</div>
-            </div>
+  const LoginPage = () => (
+    <div className="flex flex-col justify-center min-h-screen p-8">
+      <h2 className="text-3xl font-bold text-white mb-2">Welcome Back</h2>
+      <p className="text-slate-400 mb-8">Login to access your Halo safety profile.</p>
+      <form onSubmit={handleLogin} className="space-y-4">
+        <input type="email" placeholder="Email Address" required className="w-full bg-slate-800 border border-slate-700 p-4 rounded-xl text-white outline-none focus:ring-2 focus:ring-cyan-500" />
+        <input type="password" placeholder="Password" required className="w-full bg-slate-800 border border-slate-700 p-4 rounded-xl text-white outline-none focus:ring-2 focus:ring-cyan-500" />
+        <button type="submit" className="w-full bg-cyan-600 py-4 rounded-xl font-bold text-white mt-4">Login</button>
+      </form>
+      <p className="text-center text-slate-500 mt-6 text-sm">Don't have an account? <span className="text-cyan-400">Sign Up</span></p>
+    </div>
+  );
 
-            <button id="safe-button" onclick="cancelAlert()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-emerald-900/20 mb-4">
-                Yes I'm fine
+  const Dashboard = () => (
+    <div className="p-6 pb-24">
+      <div className="flex justify-between items-center mb-8 pt-4">
+        <div>
+          <h2 className="text-2xl font-bold text-white">Hello, {user?.name}</h2>
+          <p className="text-slate-400 text-sm">System Status: Active</p>
+        </div>
+        <button onClick={() => setView('welcome')} className="p-2 bg-slate-800 rounded-lg"><LogOut size={20} className="text-rose-400" /></button>
+      </div>
+
+      <div className="grid gap-4">
+        {/* Activity Toggle Card */}
+        <div className={`p-6 rounded-3xl transition-all border-2 ${isActivityMode ? 'bg-orange-500/20 border-orange-500' : 'bg-slate-800/40 border-slate-700'}`}>
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <Activity className={isActivityMode ? 'text-orange-500' : 'text-slate-400'} />
+              <div>
+                <h3 className="font-bold text-white">Physical Activity Mode</h3>
+                <p className="text-xs text-slate-400">Adjusts threshold for exercise</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setIsActivityMode(!isActivityMode)}
+              className={`w-12 h-6 rounded-full relative transition-colors ${isActivityMode ? 'bg-orange-500' : 'bg-slate-600'}`}
+            >
+              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${isActivityMode ? 'right-1' : 'left-1'}`} />
             </button>
+          </div>
         </div>
+
+        {/* Simulation Settings Card */}
+        <div className="bg-slate-800/40 p-6 rounded-3xl border border-slate-700">
+          <h3 className="font-bold text-white mb-4 flex items-center gap-2"><Settings size={18}/> Monitor Config</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs text-slate-500 uppercase font-bold">Base BPM Limit</label>
+              <input type="number" value={safetyLimit} onChange={(e) => setSafetyLimit(parseInt(e.target.value))} className="w-full bg-slate-900 mt-1 p-3 rounded-xl border border-slate-700" />
+            </div>
+            <div>
+              <label className="text-xs text-slate-500 uppercase font-bold">Emergency Delay (Sec)</label>
+              <input type="number" value={timerSeconds} onChange={(e) => setTimerSeconds(parseInt(e.target.value))} className="w-full bg-slate-900 mt-1 p-3 rounded-xl border border-slate-700" />
+            </div>
+          </div>
+        </div>
+
+        {/* Start Button */}
+        <div className="bg-cyan-600 p-6 rounded-3xl text-center cursor-pointer hover:bg-cyan-500 transition-all shadow-lg shadow-cyan-900/20" onClick={() => setView('simulation')}>
+          <div className="text-white font-bold text-lg">Launch Simulation Monitor</div>
+          <div className="text-cyan-200 text-xs">Test emergency protocols</div>
+        </div>
+      </div>
     </div>
+  );
 
-    <script>
-        let countdownTimer;
-        let isEmergency = false;
+  const ContactsPage = () => (
+    <div className="p-6 pb-24">
+      <h2 className="text-2xl font-bold text-white mb-6">Emergency Contacts</h2>
+      
+      <form onSubmit={addContact} className="bg-slate-800/40 p-6 rounded-3xl border border-slate-700 mb-6">
+        <h3 className="text-sm font-bold text-slate-400 mb-4 uppercase">Add New Contact</h3>
+        <input name="contactName" placeholder="Name" required className="w-full bg-slate-900 p-3 rounded-xl mb-3 border border-slate-700 text-white" />
+        <input name="contactPhone" placeholder="Phone Number" required className="w-full bg-slate-900 p-3 rounded-xl mb-4 border border-slate-700 text-white" />
+        <button type="submit" className="w-full bg-emerald-600 py-3 rounded-xl font-bold flex items-center justify-center gap-2"><Plus size={18}/> Add Contact</button>
+      </form>
 
-        function simulateBpm() {
-            const input = document.getElementById('input-bpm');
-            const limit = document.getElementById('bpm-limit');
-            const display = document.getElementById('display-bpm');
-            const heartIcon = document.getElementById('heart-icon');
-            
-            const val = parseInt(input.value);
-            const lim = parseInt(limit.value);
+      <div className="space-y-4">
+        {emergencyContacts.map(contact => (
+          <div key={contact.id} className="bg-slate-800/40 p-4 rounded-2xl border border-slate-700 flex justify-between items-center">
+            <div>
+              <div className="font-bold text-white">{contact.name}</div>
+              <div className="text-xs text-slate-400">{contact.relation} • {contact.phone}</div>
+            </div>
+            <button onClick={() => deleteContact(contact.id)} className="text-rose-500 p-2"><Trash2 size={18}/></button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 
-            if (isNaN(val)) return;
+  const SimulationView = () => (
+    <div className="p-6 flex flex-col items-center justify-center min-h-[80vh]">
+      <div className="text-center mb-8">
+        <div className={`w-32 h-32 rounded-full mx-auto mb-6 flex items-center justify-center border-4 border-slate-700 ${isActivityMode ? 'bg-orange-500/10 border-orange-500/30' : 'bg-cyan-500/10 border-cyan-500/30'}`}>
+          <Heart size={48} className={`${isActivityMode ? 'text-orange-500' : 'text-cyan-500'} animate-pulse`} />
+        </div>
+        <div className="text-sm text-slate-500 font-bold uppercase tracking-widest mb-1">Live Simulation</div>
+        <div className="text-5xl font-black text-white">{bpm || '--'} <span className="text-lg text-slate-500">BPM</span></div>
+      </div>
 
-            display.innerText = val;
-            
-            // Pulse animation intensity
-            if (val > 100) {
-                heartIcon.classList.add('heart-pulse');
-            } else {
-                heartIcon.classList.remove('heart-pulse');
-            }
+      <div className="w-full max-w-xs space-y-4">
+        <input 
+          type="number" 
+          value={bpm} 
+          onChange={(e) => setBpm(e.target.value)}
+          placeholder="Input simulated BPM..." 
+          className="w-full bg-slate-800 p-4 rounded-2xl text-center text-xl font-bold outline-none focus:ring-2 focus:ring-rose-500 transition-all" 
+        />
+        <button 
+          onClick={startSimulation}
+          className="w-full bg-rose-600 hover:bg-rose-500 py-4 rounded-2xl font-bold text-lg shadow-lg"
+        >
+          Check Pulse
+        </button>
+        <button onClick={() => setView('dashboard')} className="w-full text-slate-500 font-bold py-2">Back to Dashboard</button>
+      </div>
 
-            if (val > lim) {
-                triggerEmergencyProtocol();
-            }
-        }
+      {isActivityMode && (
+        <div className="mt-8 px-4 py-2 bg-orange-500/20 text-orange-400 rounded-full text-xs font-bold border border-orange-500/30">
+          ACTIVITY MODE ACTIVE (+{ACTIVITY_BPM_OFFSET} BPM Safety Buffer)
+        </div>
+      )}
+    </div>
+  );
 
-        function triggerEmergencyProtocol() {
-            const overlay = document.getElementById('alert-overlay');
-            const countdownEl = document.getElementById('countdown-number');
-            const timerSetting = document.getElementById('timer-setting');
-            
-            let timeLeft = parseInt(timerSetting.value) || 10;
-            
-            overlay.classList.remove('hidden');
-            countdownEl.innerText = timeLeft;
-            isEmergency = false;
+  return (
+    <div className="bg-slate-900 min-h-screen text-slate-200 font-sans max-w-md mx-auto relative overflow-hidden shadow-2xl">
+      
+      {/* View Logic */}
+      {view === 'welcome' && <WelcomePage />}
+      {view === 'login' && <LoginPage />}
+      {view === 'dashboard' && <Dashboard />}
+      {view === 'contacts' && <ContactsPage />}
+      {view === 'simulation' && <SimulationView />}
 
-            // Reset UI in case of previous emergency
-            document.getElementById('safe-button').classList.remove('hidden');
-            document.getElementById('alert-title').innerText = "Suspicious Heart Rate";
-            document.getElementById('alert-msg').innerText = "We have detected a suspicious heart rate. Are you alright?";
-            document.getElementById('countdown-container').classList.remove('hidden');
+      {/* Persistent Navigation (Visible in main app views) */}
+      {(view === 'dashboard' || view === 'contacts') && (
+        <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-slate-900/80 backdrop-blur-md border-t border-slate-800 p-4 flex justify-around">
+          <button onClick={() => setView('dashboard')} className={`flex flex-col items-center gap-1 ${view === 'dashboard' ? 'text-cyan-400' : 'text-slate-500'}`}>
+            <Activity size={20} />
+            <span className="text-[10px] font-bold">DASHBOARD</span>
+          </button>
+          <button onClick={() => setView('contacts')} className={`flex flex-col items-center gap-1 ${view === 'contacts' ? 'text-cyan-400' : 'text-slate-500'}`}>
+            <Users size={20} />
+            <span className="text-[10px] font-bold">CONTACTS</span>
+          </button>
+        </div>
+      )}
 
-            clearInterval(countdownTimer);
-            countdownTimer = setInterval(() => {
-                timeLeft--;
-                countdownEl.innerText = timeLeft;
+      {/* Emergency Overlay */}
+      {isAlerting && (
+        <div className="fixed inset-0 z-50 bg-slate-950/95 flex items-center justify-center p-8 backdrop-blur-sm">
+          <div className="w-full text-center">
+            {!isEmergencyTriggered ? (
+              <>
+                <div className="w-24 h-24 bg-rose-600 rounded-full flex items-center justify-center mx-auto mb-8 animate-ping">
+                  <AlertTriangle size={48} className="text-white" />
+                </div>
+                <h2 className="text-3xl font-black text-white mb-4 leading-tight">CRITICAL ALERT</h2>
+                <p className="text-slate-400 mb-10">Suspicious heart rate detected. Are you alright?</p>
+                
+                <div className="mb-10">
+                  <div className="text-sm font-bold text-slate-500 mb-2 uppercase tracking-tighter">Automatic Dispatch In</div>
+                  <div className="text-7xl font-black text-rose-500 tabular-nums">{countdown}</div>
+                </div>
 
-                if (timeLeft <= 0) {
-                    clearInterval(countdownTimer);
-                    executeDispatch();
-                }
-            }, 1000);
-        }
+                <button 
+                  onClick={() => setIsAlerting(false)}
+                  className="w-full bg-emerald-600 py-5 rounded-2xl text-xl font-bold text-white shadow-xl shadow-emerald-900/30"
+                >
+                  Yes, I'm fine
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="w-24 h-24 bg-rose-600 rounded-full flex items-center justify-center mx-auto mb-8 shadow-[0_0_40px_rgba(225,29,72,0.6)]">
+                  <Bell size={40} className="text-white" />
+                </div>
+                <h2 className="text-3xl font-black text-white mb-4">DISPATCHED</h2>
+                <p className="text-slate-300 mb-6">Emergency services and your {emergencyContacts.length} contacts have been notified with your GPS coordinates.</p>
+                <div className="bg-slate-800 p-4 rounded-xl mb-8">
+                  <div className="text-xs text-rose-400 font-bold uppercase mb-2">Notifying Contacts:</div>
+                  {emergencyContacts.map(c => <div key={c.id} className="text-sm mb-1">• {c.name} ({c.phone})</div>)}
+                </div>
+                <button 
+                  onClick={() => { setIsAlerting(false); setIsEmergencyTriggered(false); }}
+                  className="w-full border-2 border-slate-700 py-4 rounded-2xl font-bold text-slate-400"
+                >
+                  Dismiss
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
-        function executeDispatch() {
-            isEmergency = true;
-            document.getElementById('alert-title').innerText = "Emergency Triggered";
-            document.getElementById('alert-msg').innerText = "The police and emergency contacts have been contacted.";
-            document.getElementById('countdown-container').classList.add('hidden');
-            document.getElementById('safe-button').innerText = "Dismiss Notification";
-        }
-
-        function cancelAlert() {
-            clearInterval(countdownTimer);
-            document.getElementById('alert-overlay').classList.add('hidden');
-            document.getElementById('input-bpm').value = '';
-            
-            if (isEmergency) {
-                // If they clicked "Dismiss" after dispatch, we just reset the whole simulation
-                document.getElementById('display-bpm').innerText = '--';
-                document.getElementById('heart-icon').classList.remove('heart-pulse');
-            }
-        }
-    </script>
-</body>
-</html>
+export default App;
